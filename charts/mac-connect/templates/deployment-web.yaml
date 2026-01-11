@@ -59,10 +59,10 @@ spec:
       volumes:
         - name: mac-connect-rom
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.rom }}
+            claimName: {{ include "mac-connect.fullname" . }}-rom
         - name: mac-connect-disk
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.disk }}
+            claimName: {{ include "mac-connect.fullname" . }}-disk
         - name: config
           configMap:
             name: {{ include "mac-connect.fullname" . }}-config

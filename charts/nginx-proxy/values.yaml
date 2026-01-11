@@ -36,10 +36,13 @@ service:
       targetPort: 8166
       nodePort: 30166
 
-# Existing PVCs (NOT created by chart)
+# Persistence configuration
 persistence:
-  existingClaims:
-    logs: nginx-logs
+  enabled: true
+  # storageClass: ""  # Use default storage class
+  logs:
+    size: 1Gi
+    accessMode: ReadWriteOnce
 
 # TLS secret (external, not created by chart)
 tls:

@@ -60,4 +60,4 @@ spec:
       volumes:
         - name: netatalk-share
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.share }}
+            claimName: {{ include "netatalk.fullname" . }}-share

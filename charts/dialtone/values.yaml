@@ -31,13 +31,22 @@ service:
     port: 5191
     nodePort: 30190
 
-# Existing PVCs (NOT created by chart)
+# Persistence configuration
 persistence:
-  existingClaims:
-    db: dialtone-db
-    storage: dialtone-storage
-    logs: dialtone-logs
-    resources: dialtone-resources
+  enabled: true
+  # storageClass: ""  # Use default storage class
+  db:
+    size: 1Gi
+    accessMode: ReadWriteOnce
+  storage:
+    size: 5Gi
+    accessMode: ReadWriteOnce
+  logs:
+    size: 1Gi
+    accessMode: ReadWriteOnce
+  resources:
+    size: 500Mi
+    accessMode: ReadWriteOnce
 
 # Existing secrets
 secrets:

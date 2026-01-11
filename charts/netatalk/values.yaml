@@ -31,10 +31,13 @@ service:
   port: 548
   nodePort: 30548
 
-# Existing PVCs (NOT created by chart)
+# Persistence configuration
 persistence:
-  existingClaims:
-    share: netatalk-share
+  enabled: true
+  # storageClass: ""  # Use default storage class
+  share:
+    size: 5Gi
+    accessMode: ReadWriteOnce
 
 # Probes
 probes:

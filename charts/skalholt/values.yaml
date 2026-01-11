@@ -39,11 +39,16 @@ service:
         port: 8162
         nodePort: 30162
 
-# Existing PVCs (NOT created by chart)
+# Persistence configuration
 persistence:
-  existingClaims:
-    world: skalholt-world
-    logs: skalholt-logs
+  enabled: true
+  # storageClass: ""  # Use default storage class
+  world:
+    size: 2Gi
+    accessMode: ReadWriteOnce
+  logs:
+    size: 1Gi
+    accessMode: ReadWriteOnce
 
 # Probes
 probes:

@@ -151,16 +151,16 @@ spec:
       volumes:
         - name: dialtone-db
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.db }}
+            claimName: {{ include "dialtone.fullname" . }}-db
         - name: dialtone-storage
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.storage }}
+            claimName: {{ include "dialtone.fullname" . }}-storage
         - name: dialtone-logs
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.logs }}
+            claimName: {{ include "dialtone.fullname" . }}-logs
         - name: dialtone-resources
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.resources }}
+            claimName: {{ include "dialtone.fullname" . }}-resources
         - name: config
           configMap:
             name: {{ include "dialtone.fullname" . }}-config

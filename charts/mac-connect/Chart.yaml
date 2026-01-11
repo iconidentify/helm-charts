@@ -2,7 +2,7 @@ apiVersion: v2
 name: mac-connect
 description: Mac Connect - Classic Mac emulator web interface and relay
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "latest"
 keywords:
   - mac

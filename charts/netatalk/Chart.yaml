@@ -2,7 +2,7 @@ apiVersion: v2
 name: netatalk
 description: Netatalk AFP file server for classic Mac clients
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "latest"
 keywords:
   - afp

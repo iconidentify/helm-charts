@@ -45,4 +45,4 @@ spec:
       volumes:
         - name: mac-connect-disk
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.disk }}
+            claimName: {{ include "mac-connect.fullname" . }}-disk

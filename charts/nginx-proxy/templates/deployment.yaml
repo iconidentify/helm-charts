@@ -57,7 +57,7 @@ spec:
             name: {{ include "nginx-proxy.fullname" . }}-config
         - name: nginx-logs
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.logs }}
+            claimName: {{ include "nginx-proxy.fullname" . }}-logs
         - name: nginx-tls
           secret:
             secretName: {{ .Values.tls.secretName }}

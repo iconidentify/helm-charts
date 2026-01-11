@@ -58,11 +58,16 @@ web:
 imagePullSecrets:
   - name: ghcr-secret
 
-# Existing PVCs (NOT created by chart)
+# Persistence configuration
 persistence:
-  existingClaims:
-    disk: mac-connect-disk
-    rom: mac-connect-rom
+  enabled: true
+  # storageClass: ""  # Use default storage class
+  disk:
+    size: 2Gi
+    accessMode: ReadWriteOnce
+  rom:
+    size: 100Mi
+    accessMode: ReadWriteOnce
 
 # Configuration
 config:

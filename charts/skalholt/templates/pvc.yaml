@@ -1,0 +1,34 @@
+{{- if .Values.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "skalholt.fullname" . }}-world
+  labels:
+    {{- include "skalholt.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.world.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.world.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "skalholt.fullname" . }}-logs
+  labels:
+    {{- include "skalholt.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.logs.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.logs.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+{{- end }}

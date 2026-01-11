@@ -1,0 +1,34 @@
+{{- if .Values.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mac-connect.fullname" . }}-disk
+  labels:
+    {{- include "mac-connect.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.disk.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.disk.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mac-connect.fullname" . }}-rom
+  labels:
+    {{- include "mac-connect.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.rom.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.rom.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+{{- end }}

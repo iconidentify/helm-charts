@@ -1,0 +1,66 @@
+{{- if .Values.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "dialtone.fullname" . }}-db
+  labels:
+    {{- include "dialtone.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.db.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.db.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "dialtone.fullname" . }}-storage
+  labels:
+    {{- include "dialtone.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.storage.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.storage.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "dialtone.fullname" . }}-logs
+  labels:
+    {{- include "dialtone.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.logs.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.logs.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "dialtone.fullname" . }}-resources
+  labels:
+    {{- include "dialtone.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.resources.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.resources.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+{{- end }}

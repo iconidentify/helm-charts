@@ -64,10 +64,10 @@ spec:
       volumes:
         - name: skalholt-world
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.world }}
+            claimName: {{ include "skalholt.fullname" . }}-world
         - name: skalholt-logs
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaims.logs }}
+            claimName: {{ include "skalholt.fullname" . }}-logs
         - name: config
           configMap:
             name: {{ include "skalholt.fullname" . }}-config
