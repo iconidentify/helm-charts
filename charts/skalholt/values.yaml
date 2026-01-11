@@ -1,0 +1,112 @@
+# Skalholt Helm Chart Values
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/iconidentify/skalholt
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+# JVM configuration
+javaOpts: "-Xms1g -Xmx2g"
+
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+  limits:
+    memory: "2Gi"
+    cpu: "1500m"
+
+# Services
+service:
+  http:
+    type: ClusterIP
+    port: 8163
+  websocket:
+    type: ClusterIP
+    port: 8164
+  telnet:
+    type: NodePort
+    ports:
+      - name: telnet
+        port: 8161
+        nodePort: 30161
+      - name: telnet-nocolor
+        port: 8162
+        nodePort: 30162
+
+# Existing PVCs (NOT created by chart)
+persistence:
+  existingClaims:
+    world: skalholt-world
+    logs: skalholt-logs
+
+# Probes
+probes:
+  readiness:
+    tcpSocket:
+      port: 8161
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  liveness:
+    tcpSocket:
+      port: 8161
+    initialDelaySeconds: 60
+    periodSeconds: 30
+  startup:
+    tcpSocket:
+      port: 8161
+    failureThreshold: 12
+    periodSeconds: 10
+
+# Application configuration
+config:
+  serverYaml: |
+    server:
+      requestLog:
+        appenders:
+          - type: file
+            currentLogFilename: log/access.log
+            archivedLogFilenamePattern: log/access-%d.log.gz
+      gzip:
+        enabled: false
+      adminConnectors: []
+      applicationConnectors:
+        - type: http
+          port: 8163
+
+    # Application Configuration
+    production: true
+    defaultName: creeper
+    telnetPort: 8161
+    telnetPortNoColor: 8162
+    databaseFileName: creeper.mapdb
+    defaultMapSize: 14
+    forageRateLimitPerSecond: 1.5
+    maxGossipCacheSize: 10000
+    sshPort: 8165
+    websocketPort: 8164
+    dialtoneSpecialToken: zapperattack313337
+
+    # Logging Configuration
+    logging:
+      level: INFO
+      appenders:
+        - type: console
+          threshold: INFO
+        - type: file
+          threshold: INFO
+          currentLogFilename: log/creeper.log
+          archivedLogFilenamePattern: log/creeper-%d.log.gz
+          archivedFileCount: 7
+          timeZone: America/Los_Angeles
+        - type: file
+          threshold: ERROR
+          currentLogFilename: log/creeper_error.log
+          archivedLogFilenamePattern: log/creeper_error-%d.log.gz
+          archivedFileCount: 7
+          timeZone: America/Los_Angeles

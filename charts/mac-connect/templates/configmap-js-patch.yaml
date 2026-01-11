@@ -1,0 +1,11 @@
+{{- if .Values.jsPatch.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mac-connect.fullname" . }}-js-patch
+  labels:
+    {{- include "mac-connect.labels" . | nindent 4 }}
+data:
+  {{ .Values.jsPatch.filename }}: |
+{{- .Files.Get "files/index-patched.js" | nindent 4 }}
+{{- end }}

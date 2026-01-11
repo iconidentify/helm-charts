@@ -1,0 +1,21 @@
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: nginx-proxy
+  annotations:
+    crossplane.io/external-name: nginx-proxy
+spec:
+  providerConfigRef:
+    name: default
+  forProvider:
+    chart:
+      repository: oci://ghcr.io/iconidentify/charts
+      name: nginx-proxy
+      version: "0.1.0"
+      pullSecretRef:
+        name: ghcr-helm-credentials
+        namespace: crossplane-system
+    namespace: dialtone-apps
+    wait: true
+    waitTimeout: 5m0s
+  deletionPolicy: Orphan

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mac-connect-relay
+  labels:
+    {{- include "mac-connect.labels" . | nindent 4 }}
+    {{- include "mac-connect.relaySelectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.relay.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mac-connect.relaySelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mac-connect.relaySelectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: relay
+          image: "{{ .Values.relay.image.repository }}:{{ .Values.relay.image.tag }}"
+          imagePullPolicy: {{ .Values.relay.image.pullPolicy }}
+          ports:
+            - containerPort: 8081
+              name: relay
+          env:
+            - name: RELAY_BIND
+              value: {{ .Values.relay.env.relayBind | quote }}
+            - name: DIALTONE_ALLOW_IPS
+              value: {{ .Values.relay.env.allowIPs | quote }}
+            - name: DIALTONE_ALLOW_PORTS
+              value: {{ .Values.relay.env.allowPorts | quote }}
+            - name: DIALTONE_BLOCK_PRIVATE
+              value: {{ .Values.relay.env.blockPrivate | quote }}
+            - name: DISK_PATH
+              value: {{ .Values.relay.env.diskPath | quote }}
+          volumeMounts:
+            - name: mac-connect-disk
+              mountPath: /disks
+          resources:
+            {{- toYaml .Values.relay.resources | nindent 12 }}
+      volumes:
+        - name: mac-connect-disk
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.disk }}

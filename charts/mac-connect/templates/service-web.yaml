@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mac-connect-web
+  labels:
+    {{- include "mac-connect.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.web.service.type }}
+  selector:
+    {{- include "mac-connect.webSelectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ .Values.web.service.port }}
+      targetPort: 80
+      name: http

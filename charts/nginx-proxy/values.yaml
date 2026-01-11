@@ -1,0 +1,393 @@
+# Nginx Proxy Helm Chart Values
+
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: alpine
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "500m"
+
+# Service configuration
+service:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+    - name: https
+      port: 443
+      targetPort: 443
+      nodePort: 30443
+    - name: skalholt-ws
+      port: 8164
+      targetPort: 8164
+      nodePort: 30164
+    - name: mac-ws
+      port: 8166
+      targetPort: 8166
+      nodePort: 30166
+
+# Existing PVCs (NOT created by chart)
+persistence:
+  existingClaims:
+    logs: nginx-logs
+
+# TLS secret (external, not created by chart)
+tls:
+  secretName: nginx-tls
+
+# Probes
+probes:
+  readiness:
+    httpGet:
+      path: /health
+      port: 443
+      scheme: HTTPS
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  liveness:
+    exec:
+      command:
+        - nginx
+        - -t
+    initialDelaySeconds: 10
+    periodSeconds: 30
+
+# Nginx configuration
+config:
+  nginxConf: |
+    # Nginx configuration for Dialtone (K8s - No SSL)
+
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+        use epoll;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log /var/log/nginx/access.log main;
+
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+
+        # Rate limiting zone
+        limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+
+        # WebSocket connection upgrade map
+        map $http_upgrade $connection_upgrade {
+            default upgrade;
+            '' close;
+        }
+
+        # Map to detect if request came from skalholt pages
+        map $http_referer $is_skalholt_referer {
+            ~*/skalholt 1;
+            default 0;
+        }
+
+        # Upstream configuration using K8s service DNS
+        upstream dialtone_web {
+            server dialtone-web.dialtone-apps.svc.cluster.local:5200;
+            keepalive 32;
+        }
+
+        upstream mac_connect_web {
+            server mac-connect-web.dialtone-apps.svc.cluster.local:80;
+            keepalive 16;
+        }
+
+        upstream mac_connect_relay {
+            server mac-connect-relay.dialtone-apps.svc.cluster.local:8081;
+            keepalive 16;
+        }
+
+        # Main HTTP server
+        server {
+            listen 80;
+            listen [::]:80;
+            server_name _;
+
+            client_max_body_size 10M;
+
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+
+            access_log /var/log/nginx/dialtone_access.log;
+            error_log /var/log/nginx/dialtone_error.log warn;
+
+            # Static assets - route based on referer
+            location /assets/ {
+                resolver kube-dns.kube-system.svc.cluster.local valid=30s ipv6=off;
+
+                set $assets_backend "dialtone_web";
+                if ($is_skalholt_referer) {
+                    set $assets_backend "skalholt-http.dialtone-apps.svc.cluster.local:8163";
+                }
+
+                proxy_pass http://$assets_backend;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+                add_header X-Content-Type-Options "nosniff";
+            }
+
+            # SSE events - route based on referer
+            location /api/events {
+                set $sse_backend dialtone_web;
+                if ($is_skalholt_referer) {
+                    set $sse_backend skalholt-http.dialtone-apps.svc.cluster.local:8163;
+                }
+                resolver kube-dns.kube-system.svc.cluster.local valid=30s ipv6=off;
+                proxy_pass http://$sse_backend;
+
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Forwarded-For $remote_addr;
+                proxy_buffering off;
+                proxy_request_buffering off;
+                proxy_cache off;
+                proxy_set_header Connection keep-alive;
+                proxy_read_timeout 3600s;
+                proxy_send_timeout 3600s;
+
+                add_header 'X-Accel-Buffering' 'no' always;
+                gzip off;
+                proxy_set_header Accept-Encoding "";
+            }
+
+            # API routing - check referer
+            location /api/ {
+                resolver kube-dns.kube-system.svc.cluster.local valid=30s ipv6=off;
+
+                set $api_backend "dialtone_web";
+                if ($is_skalholt_referer) {
+                    set $api_backend "skalholt-http.dialtone-apps.svc.cluster.local:8163";
+                }
+                proxy_pass http://$api_backend;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header Connection '';
+
+                proxy_buffering off;
+                proxy_cache off;
+                proxy_connect_timeout 5s;
+                proxy_read_timeout 86400s;
+                proxy_send_timeout 86400s;
+
+                add_header X-Accel-Buffering no;
+            }
+
+            # Skalholt client config
+            location = /skalholt/client-config.json {
+                default_type application/json;
+                return 200 '{"websocketUrl":"ws://10.1.1.3:30164/","websocketPath":"/","websocketPort":30164}';
+            }
+
+            location = /client-config.json {
+                default_type application/json;
+                if ($is_skalholt_referer) {
+                    return 200 '{"websocketUrl":"ws://10.1.1.3:30164/","websocketPath":"/","websocketPort":30164}';
+                }
+                proxy_pass http://dialtone_web;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            # Skalholt WebSocket proxy
+            location /skalholt/ws {
+                proxy_pass http://skalholt-ws.dialtone-apps.svc.cluster.local:8164;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_buffering off;
+                proxy_read_timeout 86400s;
+            }
+
+            # Skalholt HTTP API/Web
+            location /skalholt/ {
+                proxy_pass http://skalholt-http.dialtone-apps.svc.cluster.local:8163/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Port $server_port;
+                proxy_http_version 1.1;
+            }
+
+            # Mac Connect files
+            location ^~ /rom/ {
+                proxy_pass http://mac_connect_web/rom/;
+                proxy_http_version 1.1;
+            }
+
+            location ^~ /disk/ {
+                proxy_pass http://mac_connect_web/disk/;
+                proxy_http_version 1.1;
+            }
+
+            location ^~ /emulator/ {
+                proxy_pass http://mac_connect_web/emulator/;
+                proxy_http_version 1.1;
+            }
+
+            # Mac Connect disk API endpoints -> relay
+            location ^~ /mac_connect/disk/list {
+                proxy_pass http://mac_connect_relay/disk/list;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+            location ^~ /mac_connect/disk/info {
+                proxy_pass http://mac_connect_relay/disk/info;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+            location ^~ /mac_connect/disk/read {
+                proxy_pass http://mac_connect_relay/disk/read;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+            location ^~ /mac_connect/disk/write {
+                proxy_pass http://mac_connect_relay/disk/write;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+            location ^~ /mac_connect/disk/create {
+                proxy_pass http://mac_connect_relay/disk/create;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+            location ^~ /mac_connect/disk/chunk {
+                proxy_pass http://mac_connect_relay/disk/chunk;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            # Mac Connect emulator UI
+            location ^~ /mac_connect/ {
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_pass http://mac_connect_web/;
+                proxy_redirect off;
+            }
+
+            # Root - Dialtone web console
+            location / {
+                limit_req zone=api_limit burst=20 nodelay;
+
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Port $server_port;
+
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+
+                proxy_buffering off;
+                proxy_request_buffering off;
+
+                proxy_pass http://dialtone_web;
+                proxy_redirect off;
+            }
+
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+        }
+
+        # Skalholt WebSocket server (port 8164)
+        server {
+            listen 8164;
+            listen [::]:8164;
+            server_name _;
+
+            location / {
+                proxy_pass http://skalholt-ws.dialtone-apps.svc.cluster.local:8164;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_buffering off;
+                proxy_read_timeout 86400s;
+            }
+        }
+
+        # Mac Connect relay WebSocket server (port 8166)
+        server {
+            listen 8166;
+            listen [::]:8166;
+            server_name _;
+
+            location /ethernet {
+                proxy_pass http://mac_connect_relay/ethernet;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+                proxy_set_header Host $host;
+                proxy_buffering off;
+                proxy_read_timeout 86400s;
+            }
+
+            location ~ ^/disk/(list|info|read|write|create|chunk)$ {
+                proxy_pass http://mac_connect_relay;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+    }

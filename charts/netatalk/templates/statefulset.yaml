@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: netatalk
+  labels:
+    {{- include "netatalk.labels" . | nindent 4 }}
+spec:
+  serviceName: netatalk
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "netatalk.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "netatalk.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: netatalk
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 548
+              name: afp
+          env:
+            - name: AFP_USER
+              value: {{ .Values.afp.user | quote }}
+            - name: AFP_PASS
+              value: {{ .Values.afp.pass | quote }}
+            - name: AFP_GROUP
+              value: {{ .Values.afp.group | quote }}
+            - name: SERVER_NAME
+              value: {{ .Values.afp.serverName | quote }}
+            - name: SHARE_NAME
+              value: {{ .Values.afp.shareName | quote }}
+            - name: INSECURE_AUTH
+              value: {{ .Values.afp.insecureAuth | quote }}
+            - name: DISABLE_TIMEMACHINE
+              value: {{ .Values.afp.disableTimeMachine | quote }}
+          volumeMounts:
+            - name: netatalk-share
+              mountPath: /mnt/afpshare
+          securityContext:
+            capabilities:
+              {{- toYaml .Values.securityContext.capabilities | nindent 14 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            exec:
+              command:
+                {{- toYaml .Values.probes.readiness.exec.command | nindent 16 }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          livenessProbe:
+            exec:
+              command:
+                {{- toYaml .Values.probes.liveness.exec.command | nindent 16 }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+      volumes:
+        - name: netatalk-share
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.share }}

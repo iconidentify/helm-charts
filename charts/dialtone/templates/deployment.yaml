@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dialtone
+  labels:
+    {{- include "dialtone.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "dialtone.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "dialtone.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: config-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Copying resources to shared volume..."
+              cp -r /app/resources/* /shared-resources/ || true
+              echo "Init complete"
+          volumeMounts:
+            - name: dialtone-resources
+              mountPath: /shared-resources
+      containers:
+        - name: dialtone
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 5191
+              name: aim
+            - containerPort: 5200
+              name: web
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .Values.javaOpts | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: jwt-secret
+            - name: X_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: x-oauth-client-secret
+            - name: DISCORD_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: discord-oauth-client-secret
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: resend-api-key
+            - name: GROK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: grok-api-key
+            - name: SKALHOLT_SSO_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: skalholt-sso-secret
+          volumeMounts:
+            - name: dialtone-db
+              mountPath: /app/db
+            - name: dialtone-storage
+              mountPath: /app/storage
+            - name: dialtone-logs
+              mountPath: /app/logs
+            - name: dialtone-resources
+              mountPath: /app/resources
+            - name: config
+              mountPath: /app/resources/application.properties
+              subPath: application.properties
+            {{- if .Values.jsPatch.enabled }}
+            - name: js-patch
+              mountPath: {{ .Values.jsPatch.mountPath }}
+              subPath: {{ .Values.jsPatch.filename }}
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.probes.readiness.tcpSocket.port }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.probes.liveness.tcpSocket.port }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+      volumes:
+        - name: dialtone-db
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.db }}
+        - name: dialtone-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.storage }}
+        - name: dialtone-logs
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.logs }}
+        - name: dialtone-resources
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.resources }}
+        - name: config
+          configMap:
+            name: {{ include "dialtone.fullname" . }}-config
+        {{- if .Values.jsPatch.enabled }}
+        - name: js-patch
+          configMap:
+            name: {{ include "dialtone.fullname" . }}-js-patch
+        {{- end }}

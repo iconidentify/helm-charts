@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mac-connect-web
+  labels:
+    {{- include "mac-connect.labels" . | nindent 4 }}
+    {{- include "mac-connect.webSelectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mac-connect.webSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mac-connect.webSelectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            - name: mac-connect-rom
+              mountPath: /usr/share/nginx/html/rom
+              readOnly: true
+            - name: mac-connect-disk
+              mountPath: /usr/share/nginx/html/disk
+              readOnly: true
+            - name: config
+              mountPath: /usr/share/nginx/html/config.json
+              subPath: config.json
+            {{- if .Values.jsPatch.enabled }}
+            - name: js-patch
+              mountPath: {{ .Values.jsPatch.mountPath }}
+              subPath: {{ .Values.jsPatch.filename }}
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.web.probes.readiness.httpGet.path }}
+              port: {{ .Values.web.probes.readiness.httpGet.port }}
+            initialDelaySeconds: {{ .Values.web.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.web.probes.readiness.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.web.probes.liveness.httpGet.path }}
+              port: {{ .Values.web.probes.liveness.httpGet.port }}
+            initialDelaySeconds: {{ .Values.web.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.web.probes.liveness.periodSeconds }}
+      volumes:
+        - name: mac-connect-rom
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.rom }}
+        - name: mac-connect-disk
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.disk }}
+        - name: config
+          configMap:
+            name: {{ include "mac-connect.fullname" . }}-config
+        {{- if .Values.jsPatch.enabled }}
+        - name: js-patch
+          configMap:
+            name: {{ include "mac-connect.fullname" . }}-js-patch
+        {{- end }}

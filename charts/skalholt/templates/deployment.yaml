@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skalholt
+  labels:
+    {{- include "skalholt.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "skalholt.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "skalholt.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: skalholt
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8161
+              name: telnet
+            - containerPort: 8162
+              name: telnet-nocolor
+            - containerPort: 8163
+              name: http
+            - containerPort: 8164
+              name: websocket
+            - containerPort: 8165
+              name: ssh
+          env:
+            - name: JAVA_OPTS
+              value: {{ .Values.javaOpts | quote }}
+          volumeMounts:
+            - name: skalholt-world
+              mountPath: /app/world
+            - name: skalholt-logs
+              mountPath: /app/log
+            - name: config
+              mountPath: /app/server.yaml
+              subPath: server.yaml
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.probes.readiness.tcpSocket.port }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.probes.liveness.tcpSocket.port }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          startupProbe:
+            tcpSocket:
+              port: {{ .Values.probes.startup.tcpSocket.port }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+      volumes:
+        - name: skalholt-world
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.world }}
+        - name: skalholt-logs
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaims.logs }}
+        - name: config
+          configMap:
+            name: {{ include "skalholt.fullname" . }}-config

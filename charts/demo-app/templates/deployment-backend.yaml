@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    {{- include "demo-app.labels" . | nindent 4 }}
+    {{- include "demo-app.backendSelectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "demo-app.backendSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "demo-app.backendSelectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: echo
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          args:
+            {{- toYaml .Values.backend.args | nindent 12 }}
+          ports:
+            - containerPort: 5678
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}

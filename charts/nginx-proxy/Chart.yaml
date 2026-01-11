@@ -1,0 +1,12 @@
+apiVersion: v2
+name: nginx-proxy
+description: Nginx reverse proxy for Dialtone services
+type: application
+version: 0.1.0
+appVersion: "alpine"
+keywords:
+  - nginx
+  - proxy
+  - gateway
+maintainers:
+  - name: chrisk

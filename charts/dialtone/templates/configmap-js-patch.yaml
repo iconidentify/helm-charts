@@ -1,0 +1,11 @@
+{{- if .Values.jsPatch.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dialtone.fullname" . }}-js-patch
+  labels:
+    {{- include "dialtone.labels" . | nindent 4 }}
+data:
+  {{ .Values.jsPatch.filename }}: |
+{{- .Files.Get "files/dialtone-index-patched.js" | nindent 4 }}
+{{- end }}

@@ -1,0 +1,60 @@
+# Netatalk Helm Chart Values
+
+replicaCount: 1
+
+image:
+  repository: netatalk/netatalk
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# AFP configuration
+afp:
+  user: "mac"
+  pass: "mac"
+  group: "dream"
+  serverName: "FileServer"
+  shareName: "Software"
+  insecureAuth: "1"
+  disableTimeMachine: "1"
+
+# Service configuration
+service:
+  type: NodePort
+  port: 548
+  nodePort: 30548
+
+# Existing PVCs (NOT created by chart)
+persistence:
+  existingClaims:
+    share: netatalk-share
+
+# Probes
+probes:
+  readiness:
+    exec:
+      command:
+        - pgrep
+        - afpd
+    initialDelaySeconds: 10
+    periodSeconds: 30
+  liveness:
+    exec:
+      command:
+        - pgrep
+        - afpd
+    initialDelaySeconds: 30
+    periodSeconds: 30
+
+# Security context
+securityContext:
+  capabilities:
+    add:
+      - NET_ADMIN

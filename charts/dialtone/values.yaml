@@ -1,0 +1,180 @@
+# Dialtone Helm Chart Values
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/iconidentify/dialtone
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+# JVM configuration
+javaOpts: "-Xms512m -Xmx1024m"
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "1024Mi"
+    cpu: "1000m"
+
+# Services
+service:
+  web:
+    type: ClusterIP
+    port: 5200
+  aim:
+    type: NodePort
+    port: 5191
+    nodePort: 30190
+
+# Existing PVCs (NOT created by chart)
+persistence:
+  existingClaims:
+    db: dialtone-db
+    storage: dialtone-storage
+    logs: dialtone-logs
+    resources: dialtone-resources
+
+# Existing secrets
+secrets:
+  name: dialtone-secrets
+
+# Probes
+probes:
+  readiness:
+    tcpSocket:
+      port: 5200
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  liveness:
+    tcpSocket:
+      port: 5191
+    initialDelaySeconds: 60
+    periodSeconds: 30
+
+# Application configuration (becomes ConfigMap)
+# NOTE: Secrets are injected via environment variables from dialtone-secrets
+# Do not put actual secrets in this file!
+config:
+  applicationProperties: |
+    # Dialtone Protocol Server Configuration (K8s)
+    server.port=5191
+    verbose=true
+    bind.address=0.0.0.0
+
+    # Web Interface Configuration
+    web.port=5200
+    web.bind.address=0.0.0.0
+
+    # Database Configuration
+    db.path=db/dialtone.db
+    db.pool.max.size=10
+    db.pool.min.idle=2
+    db.connection.timeout=30000
+
+    # X OAuth Configuration
+    x.oauth.client.id=${X_OAUTH_CLIENT_ID:}
+    x.oauth.client.secret=${X_OAUTH_CLIENT_SECRET}
+    x.oauth.redirect.uri=https://10.1.1.3:30443/api/auth/x/callback
+
+    # Discord OAuth Configuration
+    discord.oauth.client.id=${DISCORD_OAUTH_CLIENT_ID:}
+    discord.oauth.client.secret=${DISCORD_OAUTH_CLIENT_SECRET}
+    discord.oauth.redirect.uri=https://10.1.1.3:30443/api/auth/discord/callback
+
+    # Email Authentication (Resend Magic Link)
+    email.enabled=true
+    email.resend.api.key=${RESEND_API_KEY}
+    email.from.address=support@dialtone.live
+    email.from.name=Dialtone
+    email.magic.link.expiry.minutes=15
+    email.base.url=https://10.1.1.3:30443
+    email.rate.limit.per.hour=3
+
+    # Web Session Configuration
+    session.timeout.minutes=1440
+    jwt.secret=${JWT_SECRET}
+    jwt.expiry.hours=24
+
+    # Development Configuration
+    development.mode=false
+    cors.allowed.origins=http://10.1.1.3:30080,https://10.1.1.3:30443
+
+    # Authentication Configuration
+    auth.mode=database
+
+    # FDO Compiler Backend Selection
+    fdo.compiler.backend=java
+    fdo.shadow.native.enabled=false
+    fdo.shadow.native.log.level=info
+    fdo.idb.shadow.enabled=false
+
+    # P3 Frame Configuration
+    p3.max.frame.length=512
+    pacer.inter.frame.delay.ms=0
+
+    # Grok AI API configuration
+    grok.enabled=true
+    grok.api.key=${GROK_API_KEY}
+    grok.base.url=https://api.x.ai/v1
+    grok.model=grok-4
+    grok.timeout.ms=180000
+    grok.refresh.interval.minutes=1440
+    grok.retry.enabled=false
+    grok.retry.delay.seconds=10
+    grok.daily.quota=10
+    grok.search.enabled=true
+    grok.search.mode=auto
+    grok.search.sources=web,news,x
+    grok.search.max_results=20
+    grok.story.summary.sentences=4
+    grok.story.headline.words.min=12
+    grok.story.headline.words.max=18
+
+    # Unified News Service Configuration
+    news.base.persist.dir=src/main/resources/news
+    news.default.refresh.interval.minutes=1440
+    news.default.daily.quota=10
+    news.default.keep.count=10
+    news.general.refresh.interval.minutes=30
+
+    # Grok Conversational AI
+    grok.chat.max.tokens=300
+    grok.chat.temperature=0.8
+    grok.chat.system.prompt=You are Grok, a friendly and knowledgeable AI assistant from the classic instant messenger era. You are helpful, conversational, and have a warm personality. Keep responses concise (2-3 sentences) because you are chatting in real-time. Be informative but not overly formal - you are a friend helping someone out. IMPORTANT: Never use emojis or non-ASCII characters in your responses. This is a 1995 ASCII-only protocol that cannot handle emojis. Use plain text only with standard punctuation.
+
+    # Chat Bot Registry
+    bot.response.timeout.ms=60000
+
+    # Admin System Configuration
+    admin.enabled=true
+    admin.x.usernames=SiliconForested
+    admin.auto.promote=true
+    admin.max.screennames.override=20
+    admin.session.timeout.minutes=30
+    admin.require.confirmation.for.destructive.actions=true
+    admin.rate.limit.requests.per.minute=60
+    admin.audit.log.retention.days=365
+    admin.audit.log.max.entries=100000
+
+    upload.tn.enabled=false
+    upload.ack.enabled=false
+    auth.pass.through=false
+
+    # Skalholt integration (K8s service names)
+    telnet.host=skalholt-telnet.dialtone-apps.svc.cluster.local
+    telnet.port=8162
+    telnet.timeout.ms=30000
+    skalholt.sso.secret=${SKALHOLT_SSO_SECRET}
+    skalholt.api.host=skalholt-http.dialtone-apps.svc.cluster.local
+    skalholt.api.port=8163
+
+# JS patch file (will be loaded from external file during chart packaging)
+jsPatch:
+  enabled: true
+  filename: "dialtone-index-patched.js"
+  mountPath: "/app/resources/public/assets/index-tipHyPrx.js"

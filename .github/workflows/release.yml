@@ -1,0 +1,80 @@
+name: Release Helm Charts
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Chart version to release'
+        required: true
+        default: '0.1.0'
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_PATH: ghcr.io/iconidentify/charts
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.13.0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from tag (v0.1.0 -> 0.1.0)
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Package and Push Charts
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CHARTS="dialtone skalholt mac-connect nginx-proxy netatalk demo-app"
+
+          for chart in $CHARTS; do
+            echo "=== Processing $chart ==="
+
+            # Update version in Chart.yaml
+            sed -i "s/^version:.*/version: $VERSION/" "charts/$chart/Chart.yaml"
+
+            # Lint
+            helm lint "charts/$chart"
+
+            # Package
+            helm package "charts/$chart" -d /tmp/packages/
+
+            # Push to OCI registry
+            helm push "/tmp/packages/${chart}-${VERSION}.tgz" "oci://${{ env.REGISTRY_PATH }}"
+
+            echo "=== $chart pushed successfully ==="
+          done
+
+      - name: Summary
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "## Released Charts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Chart | OCI URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
+          for chart in dialtone skalholt mac-connect nginx-proxy netatalk demo-app; do
+            echo "| $chart | \`oci://${{ env.REGISTRY_PATH }}/$chart:$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          done

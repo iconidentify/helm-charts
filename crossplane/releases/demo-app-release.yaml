@@ -1,0 +1,21 @@
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: demo-app
+  annotations:
+    crossplane.io/external-name: demo-app
+spec:
+  providerConfigRef:
+    name: default
+  forProvider:
+    chart:
+      repository: oci://ghcr.io/iconidentify/charts
+      name: demo-app
+      version: "0.1.0"
+      pullSecretRef:
+        name: ghcr-helm-credentials
+        namespace: crossplane-system
+    namespace: demo-app
+    wait: true
+    waitTimeout: 5m0s
+  deletionPolicy: Orphan
