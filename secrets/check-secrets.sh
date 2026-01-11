@@ -24,8 +24,9 @@ check_secret() {
 
         # Check each key
         for key in $keys; do
-            local value=$(kubectl get secret "$name" -n "$namespace" -o jsonpath="{.data.$key}" 2>/dev/null)
-            if [ -n "$value" ]; then
+            # Use go-template for reliable key access (handles dots in key names)
+            local value=$(kubectl get secret "$name" -n "$namespace" -o go-template="{{index .data \"$key\"}}" 2>/dev/null)
+            if [ -n "$value" ] && [ "$value" != "<no value>" ]; then
                 local decoded_len=$(echo "$value" | base64 -d 2>/dev/null | wc -c)
                 echo -e "  - $key: ${GREEN}set${NC} ($decoded_len bytes)"
             else
