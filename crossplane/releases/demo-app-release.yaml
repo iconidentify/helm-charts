@@ -16,6 +16,13 @@ spec:
         name: ghcr-helm-credentials
         namespace: crossplane-system
     namespace: demo-app
+    values:
+      frontend:
+        service:
+          nodePort: 30082
+      backend:
+        service:
+          nodePort: 30083
     wait: true
     waitTimeout: 5m0s
   deletionPolicy: Orphan

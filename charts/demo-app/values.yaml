@@ -17,7 +17,7 @@ frontend:
   service:
     type: NodePort
     port: 80
-    nodePort: 30080
+    nodePort: 30082
 
 # Backend configuration
 backend:
@@ -38,7 +38,7 @@ backend:
   service:
     type: NodePort
     port: 5678
-    nodePort: 30081
+    nodePort: 30083
 
 # Redis configuration
 redis:
