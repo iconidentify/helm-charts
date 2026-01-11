@@ -31,24 +31,15 @@ spec:
             - name: dialtone-resources
               mountPath: /shared-resources
         - name: envsubst-config
-          image: busybox:1.36
+          image: bhgedigital/envsubst:latest
           command: ["/bin/sh", "-c"]
           args:
             - |
               echo "Substituting environment variables in config..."
-              # Read the config template and substitute env vars
-              while IFS= read -r line; do
-                # Replace ${VAR} patterns with actual env values
-                result="$line"
-                for var in JWT_SECRET X_OAUTH_CLIENT_SECRET DISCORD_OAUTH_CLIENT_SECRET RESEND_API_KEY GROK_API_KEY SKALHOLT_SSO_SECRET X_OAUTH_CLIENT_ID DISCORD_OAUTH_CLIENT_ID; do
-                  eval "val=\$$var"
-                  if [ -n "$val" ]; then
-                    result=$(echo "$result" | sed "s|\${${var}}|${val}|g" | sed "s|\${${var}:}|${val}|g")
-                  fi
-                done
-                echo "$result"
-              done < /config-template/application.properties > /processed-config/application.properties
+              envsubst < /config-template/application.properties > /processed-config/application.properties
               echo "Config substitution complete"
+              echo "Verifying grok.api.key:"
+              grep grok.api.key /processed-config/application.properties | head -c 30
           env:
             - name: JWT_SECRET
               valueFrom:

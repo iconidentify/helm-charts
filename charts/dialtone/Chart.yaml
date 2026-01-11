@@ -2,7 +2,7 @@ apiVersion: v2
 name: dialtone
 description: Dialtone Protocol Server - AIM-compatible messaging server
 type: application
-version: 0.1.1
+version: 0.1.2
 appVersion: "latest"
 keywords:
   - messaging
