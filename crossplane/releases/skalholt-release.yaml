@@ -11,7 +11,7 @@ spec:
     chart:
       repository: oci://ghcr.io/iconidentify/charts
       name: skalholt
-      version: "0.2.0"
+      version: "0.2.1"
       pullSecretRef:
         name: ghcr-helm-credentials
         namespace: crossplane-system

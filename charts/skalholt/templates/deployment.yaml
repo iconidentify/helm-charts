@@ -18,6 +18,26 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        - name: envsubst-config
+          image: bhgedigital/envsubst:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Substituting environment variables in config..."
+              envsubst < /config-template/server.yaml > /processed-config/server.yaml
+              echo "Config substitution complete"
+          env:
+            - name: SKALHOLT_SSO_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.ssoSecretKey }}
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: processed-config
+              mountPath: /processed-config
       containers:
         - name: skalholt
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -41,7 +61,7 @@ spec:
               mountPath: /app/world
             - name: skalholt-logs
               mountPath: /app/log
-            - name: config
+            - name: processed-config
               mountPath: /app/server.yaml
               subPath: server.yaml
           resources:
@@ -68,6 +88,8 @@ spec:
         - name: skalholt-logs
           persistentVolumeClaim:
             claimName: {{ include "skalholt.fullname" . }}-logs
-        - name: config
+        - name: config-template
           configMap:
             name: {{ include "skalholt.fullname" . }}-config
+        - name: processed-config
+          emptyDir: {}

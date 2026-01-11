@@ -10,6 +10,12 @@ image:
 imagePullSecrets:
   - name: ghcr-secret
 
+# Secrets configuration
+# Skalholt uses the same dialtone-secrets for SSO shared secret
+secrets:
+  name: dialtone-secrets
+  ssoSecretKey: skalholt-sso-secret
+
 # JVM configuration
 javaOpts: "-Xms1g -Xmx2g"
 
@@ -95,7 +101,7 @@ config:
     maxGossipCacheSize: 10000
     sshPort: 8165
     websocketPort: 8164
-    dialtoneSpecialToken: zapperattack313337
+    dialtoneSpecialToken: ${SKALHOLT_SSO_SECRET}
 
     # Logging Configuration
     logging:
