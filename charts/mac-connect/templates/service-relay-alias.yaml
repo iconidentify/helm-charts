@@ -1,0 +1,11 @@
+# Alias service for nginx to find the relay
+# The nginx config in the web image expects upstream "relay" to exist
+apiVersion: v1
+kind: Service
+metadata:
+  name: relay
+  labels:
+    {{- include "mac-connect.labels" . | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: mac-connect-relay.{{ .Release.Namespace }}.svc.cluster.local
