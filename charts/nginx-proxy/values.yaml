@@ -50,8 +50,8 @@ probes:
   readiness:
     httpGet:
       path: /health
-      port: 443
-      scheme: HTTPS
+      port: 80
+      scheme: HTTP
     initialDelaySeconds: 5
     periodSeconds: 10
   liveness:
