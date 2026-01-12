@@ -48,7 +48,7 @@ jobs:
       - name: Package and Push Charts
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          CHARTS="dialtone skalholt mac-connect nginx-proxy netatalk demo-app"
+          CHARTS="dialtone skalholt mac-connect nginx-proxy netatalk demo-app 68k-relay 68k-web"
 
           for chart in $CHARTS; do
             echo "=== Processing $chart ==="
@@ -75,6 +75,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Chart | OCI URL |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
-          for chart in dialtone skalholt mac-connect nginx-proxy netatalk demo-app; do
+          for chart in dialtone skalholt mac-connect nginx-proxy netatalk demo-app 68k-relay 68k-web; do
             echo "| $chart | \`oci://${{ env.REGISTRY_PATH }}/$chart:$VERSION\` |" >> $GITHUB_STEP_SUMMARY
           done
