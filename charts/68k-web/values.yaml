@@ -1,0 +1,58 @@
+# 68k-web Helm Chart Values
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/iconidentify/68k_web-web
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+service:
+  type: ClusterIP
+  port: 80
+
+probes:
+  readiness:
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  liveness:
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 30
+
+# Reference to PVCs created by 68k-relay chart
+# Use the same release name to share PVCs
+sharedPvc:
+  # Prefix for shared PVC names (should match 68k-relay release name)
+  relayReleaseName: "68k-relay"
+  # Set to false if you want to skip mounting shared PVCs
+  enabled: true
+
+# Configuration
+config:
+  configJson: |
+    {
+      "defaultBootDisk": "system7.dsk"
+    }
+
+# JS patch (disabled by default)
+jsPatch:
+  enabled: false
+  filename: "index-patched.js"
+  mountPath: "/usr/share/nginx/html/assets/index-qcmAH0Ad.js"

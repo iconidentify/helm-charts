@@ -1,0 +1,16 @@
+apiVersion: v2
+name: 68k-web
+description: 68k Mac Emulator Web Interface
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - mac
+  - emulator
+  - 68k
+  - web
+home: https://github.com/iconidentify/68k_web
+sources:
+  - https://github.com/iconidentify/68k_web
+maintainers:
+  - name: iconidentify

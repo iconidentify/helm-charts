@@ -1,0 +1,41 @@
+# 68k-relay Helm Chart Values
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/iconidentify/68k_web-relay
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+env:
+  relayBind: ":8081"
+  allowIPs: "10.0.0.0/8,192.168.0.0/16"
+  allowPorts: "5191,548"
+  blockPrivate: "false"
+  diskPath: "/disks"
+
+service:
+  type: ClusterIP
+  port: 8081
+
+# Persistence configuration - relay owns these PVCs
+persistence:
+  enabled: true
+  # storageClass: ""  # Use default storage class
+  disk:
+    size: 2Gi
+    accessMode: ReadWriteOnce
+  rom:
+    size: 100Mi
+    accessMode: ReadWriteOnce

@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "68k-web.fullname" . }}
+  labels:
+    {{- include "68k-web.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "68k-web.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "68k-web.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            {{- if .Values.sharedPvc.enabled }}
+            - name: rom
+              mountPath: /usr/share/nginx/html/rom
+              readOnly: true
+            - name: disk
+              mountPath: /usr/share/nginx/html/disk
+              readOnly: true
+            {{- end }}
+            - name: config
+              mountPath: /usr/share/nginx/html/config.json
+              subPath: config.json
+            {{- if .Values.jsPatch.enabled }}
+            - name: js-patch
+              mountPath: {{ .Values.jsPatch.mountPath }}
+              subPath: {{ .Values.jsPatch.filename }}
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.httpGet.path }}
+              port: {{ .Values.probes.readiness.httpGet.port }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.httpGet.path }}
+              port: {{ .Values.probes.liveness.httpGet.port }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+      volumes:
+        {{- if .Values.sharedPvc.enabled }}
+        - name: rom
+          persistentVolumeClaim:
+            claimName: {{ include "68k-web.sharedPvcPrefix" . }}-rom
+        - name: disk
+          persistentVolumeClaim:
+            claimName: {{ include "68k-web.sharedPvcPrefix" . }}-disk
+        {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "68k-web.fullname" . }}-config
+        {{- if .Values.jsPatch.enabled }}
+        - name: js-patch
+          configMap:
+            name: {{ include "68k-web.fullname" . }}-js-patch
+        {{- end }}

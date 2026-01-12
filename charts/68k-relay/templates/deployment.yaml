@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "68k-relay.fullname" . }}
+  labels:
+    {{- include "68k-relay.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "68k-relay.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "68k-relay.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: relay
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8081
+              name: relay
+          env:
+            - name: RELAY_BIND
+              value: {{ .Values.env.relayBind | quote }}
+            - name: DIALTONE_ALLOW_IPS
+              value: {{ .Values.env.allowIPs | quote }}
+            - name: DIALTONE_ALLOW_PORTS
+              value: {{ .Values.env.allowPorts | quote }}
+            - name: DIALTONE_BLOCK_PRIVATE
+              value: {{ .Values.env.blockPrivate | quote }}
+            - name: DISK_PATH
+              value: {{ .Values.env.diskPath | quote }}
+          volumeMounts:
+            - name: disk
+              mountPath: /disks
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: disk
+          persistentVolumeClaim:
+            claimName: {{ include "68k-relay.fullname" . }}-disk
