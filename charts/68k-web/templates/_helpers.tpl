@@ -51,7 +51,12 @@ app: 68k-web
 
 {{/*
 Shared PVC name prefix (from relay release)
+Use relayFullname if specified, otherwise construct from relayReleaseName
 */}}
 {{- define "68k-web.sharedPvcPrefix" -}}
+{{- if .Values.sharedPvc.relayFullname }}
+{{- .Values.sharedPvc.relayFullname }}
+{{- else }}
 {{- .Values.sharedPvc.relayReleaseName }}-68k-relay
+{{- end }}
 {{- end }}

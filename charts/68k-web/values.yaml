@@ -41,6 +41,9 @@ probes:
 sharedPvc:
   # Prefix for shared PVC names (should match 68k-relay release name)
   relayReleaseName: "68k-relay"
+  # Optional: Override the full relay name if using fullnameOverride in relay chart
+  # If set, this is used directly as PVC prefix instead of relayReleaseName-68k-relay
+  # relayFullname: "mac-relay"
   # Set to false if you want to skip mounting shared PVCs
   enabled: true
 

@@ -2,7 +2,7 @@ apiVersion: v2
 name: 68k-web
 description: 68k Mac Emulator Web Interface
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "latest"
 keywords:
   - mac
